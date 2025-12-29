@@ -1,60 +1,69 @@
 # DPerp - Perpetual Trading
 
-DPerp enables leveraged perpetual trading of synthetic assets using an order book model with oracle-anchored pricing. The system provides up to 50x leverage with cross-margin support and trader-to-trader counterparty matching.
+DPerp enables leveraged perpetual trading of synthetic assets using a CEX-style order book model with trader-to-trader matching. The system provides up to 50x leverage with cross-margin support and direct counterparty trading without liquidity pools.
 
 ## Overview
 
 DPerp provides:
-- Central limit order book (CLOB) trading
-- Oracle-anchored mark pricing (never order book pricing)
+- Central limit order book (CLOB) trading like traditional exchanges
+- Trader-to-trader counterparty matching (no LP pools)
+- Oracle-anchored mark pricing for fair liquidations
 - Cross-margin system for capital efficiency
 - Price-deviation based funding rates
-- Equity-aware market hours and risk controls
+- Professional trading features and order types
 
 ## Architecture
 
 ```
-User Interface (OrderBook API)
+User Interface (Trading API)
          ↓
-    Matching Engine (Off-chain)
+    Order Book Engine (Off-chain)
          ↓
-    Settlement Layer (On-chain)
+    Trade Matching & Settlement (On-chain)
          ↓
 ┌─────────────────────────────────────────┐
 │  MarketRegistry │ PositionManager       │
 │  OracleModule   │ MarginAccount         │
-│  FundingEngine  │ LiquidationEngine     │
+│  FundingEngine  │ OrderBook             │
 └─────────────────────────────────────────┘
 ```
 
 ### Core Components
 
-- **MarketRegistry**: Market configuration and status management
-- **PositionManager**: Position lifecycle and PnL tracking
-- **MarginAccount**: Cross-margin collateral management
-- **FundingEngine**: Oracle-anchored funding rate system
-- **OrderBook**: Off-chain order matching with on-chain settlement
-- **LiquidationEngine**: Automated liquidation system
+- **OrderBook**: CEX-style order matching with price-time priority
+- **PositionManager**: Cross-margin position tracking and PnL
+- **MarginAccount**: Unified collateral management across positions
+- **FundingEngine**: Oracle-anchored funding between traders
+- **MarketRegistry**: Market configuration and trading parameters
+- **TradeEngine**: Batch settlement of matched trades
 
 ## Key Features
 
-### Order Book Trading
-- **Central Limit Order Book**: Price-time priority matching
-- **Order Types**: Limit, Market, Post-only, Reduce-only, IOC/FOK
-- **Partial Fills**: Support for partial order execution
-- **Batch Settlement**: Gas-efficient trade commits
+### CEX-Style Order Book Trading
+- **Central Limit Order Book**: Price-time priority matching like Binance/Bybit
+- **Trader-to-Trader**: Direct counterparty matching without LP intermediaries
+- **Professional Orders**: Limit, Market, Stop, Take-Profit, IOC, FOK
+- **Partial Fills**: Large orders filled incrementally across multiple counterparties
+- **Real-Time Matching**: Sub-second order execution and matching
 
-### Oracle-Anchored Pricing
-- **Mark Price = Oracle Price**: Never uses order book mid price
+### No Liquidity Pool Model
+- **Direct Trading**: Traders trade directly against each other
+- **No LP Risk**: No liquidity providers acting as counterparties
+- **Market-Driven Pricing**: Order book determines execution prices
+- **Zero Protocol Directional Risk**: Protocol never takes trading positions
+- **Pure Matching**: Protocol only facilitates trade matching and settlement
+
+### Oracle-Anchored Risk Management
+- **Mark Price = Oracle Price**: Liquidations and funding use oracle prices
+- **Fair Liquidations**: Prevent manipulation through order book pricing
 - **Funding Mechanism**: Based on price deviation from oracle
-- **Risk Management**: All margin and liquidation use oracle prices
-- **Market Hours**: Equity-aware funding adjustments
+- **Risk Calculations**: All margin and health checks use oracle data
 
 ### Cross-Margin System
 - **Shared Collateral**: Single margin pool across all positions
+- **Portfolio Margining**: Offsetting positions reduce margin requirements
 - **Capital Efficiency**: Maximize leverage with available margin
-- **Portfolio Risk**: Unified risk management
-- **Netting**: Offsetting positions reduce margin requirements
+- **Unified Risk**: Holistic portfolio risk management
 
 ## Supported Markets
 
@@ -86,14 +95,24 @@ User Interface (OrderBook API)
 
 ### Opening Positions via Order Book
 ```javascript
-// Submit limit order to order book
+// Submit limit order to CEX-style order book
 await orderBook.submitOrder({
   market: keccak256("BTC"),
   side: "BUY",           // BUY or SELL
   size: parseEther("10000"), // $10,000 position
   price: parseEther("50000"), // $50,000 limit price
   orderType: "LIMIT",
-  timeInForce: "GTC"     // Good Till Cancel
+  timeInForce: "GTC",    // Good Till Cancel
+  reduceOnly: false      // Open new position
+})
+
+// Market order for immediate execution
+await orderBook.submitOrder({
+  market: keccak256("BTC"),
+  side: "BUY",
+  size: parseEther("5000"),
+  orderType: "MARKET",
+  slippageTolerance: 100 // 1% max slippage
 })
 ```
 
@@ -105,11 +124,14 @@ const position = await positionManager.getPosition(
   keccak256("BTC")
 )
 
-// Close position at market
-await positionManager.closePosition(
-  keccak256("BTC"),
-  parseEther("50000") // acceptable price
-)
+// Close position with market order
+await orderBook.submitOrder({
+  market: keccak256("BTC"),
+  side: position.isLong ? "SELL" : "BUY",
+  size: position.size,
+  orderType: "MARKET",
+  reduceOnly: true
+})
 ```
 
 ### Position Structure
@@ -121,6 +143,36 @@ struct Position {
     uint256 timestamp;        // Position open time
 }
 ```
+
+## CEX-Style Trading Model
+
+### Order Book Mechanics
+- **Price-Time Priority**: Best price first, then earliest timestamp
+- **Continuous Matching**: Real-time order matching as orders arrive
+- **Depth Aggregation**: Multiple orders at same price level
+- **Spread Management**: Natural bid-ask spread from trader orders
+- **Market Impact**: Large orders move through multiple price levels
+
+### Trade Execution Flow
+```
+1. Trader A submits BUY order: 1 BTC at $50,000
+2. Trader B submits SELL order: 1 BTC at $50,000
+3. Orders match at $50,000
+4. On-chain settlement:
+   - Trader A: Long position opened
+   - Trader B: Short position opened
+   - Both pay trading fees
+   - Margin reserved for both positions
+```
+
+### No Liquidity Pool Counterparty
+Unlike GMX/GLP model:
+- ❌ No LP tokens or liquidity providers
+- ❌ No protocol acting as counterparty
+- ❌ No pool-based PnL calculations
+- ✅ Direct trader-to-trader matching
+- ✅ Market-driven price discovery
+- ✅ Zero protocol directional exposure
 
 ## Margin System
 
@@ -152,23 +204,33 @@ availableMargin = totalCollateral + unrealizedPnL - usedMargin
 | Commodities    | 20x          | 5%                 |
 | Forex          | 100x         | 1%                 |
 
-## Funding Mechanism
+## Funding Mechanism (Trader-to-Trader)
 
-### Oracle-Anchored Funding
-Unlike traditional perp funding based on open interest skew, DPerp uses price deviation:
+### CEX-Style Funding
+Funding flows directly between traders, not through liquidity pools:
 
 ```
 Funding Rate = clamp(
-    (Perp Price - Oracle Price) / Oracle Price,
+    (Order Book Mid Price - Oracle Price) / Oracle Price,
     ±maxFundingRate
 )
 ```
 
-### Funding Flow
-- **Direct Payment**: Longs ↔ Shorts (no protocol capture)
-- **Continuous Accrual**: Real-time funding accumulation
-- **Hourly Settlement**: Applied every hour
-- **Market Hours Aware**: Reduced funding when equity markets closed
+### Direct Payment System
+- **Long Positions**: Pay funding when order book price > oracle price
+- **Short Positions**: Receive funding when order book price > oracle price
+- **No Protocol Capture**: 100% of funding flows between traders
+- **Hourly Settlement**: Funding applied every hour automatically
+
+### Funding Calculation Example
+```
+Oracle BTC Price: $50,000
+Order Book Mid Price: $50,100 (0.2% premium)
+Funding Rate: +0.2% / 24 = +0.0083% per hour
+
+Long Position (1 BTC): Pays $4.17 per hour
+Short Position (1 BTC): Receives $4.17 per hour
+```
 
 ### Funding Rate Caps
 - **Crypto**: ±10% daily maximum
@@ -178,27 +240,44 @@ Funding Rate = clamp(
 
 ## Order Types & Execution
 
-### Supported Order Types
+### Professional Order Types
 1. **Limit Orders**: Execute at specified price or better
-2. **Market Orders**: Execute immediately at best available price
-3. **Post-Only**: Only add liquidity (reject if would take)
-4. **Reduce-Only**: Only reduce existing position size
-5. **IOC (Immediate or Cancel)**: Execute immediately or cancel
-6. **FOK (Fill or Kill)**: Execute completely or cancel
+2. **Market Orders**: Execute immediately against best available orders
+3. **Stop Orders**: Trigger market order when price reaches stop level
+4. **Take Profit**: Close position when profit target reached
+5. **IOC (Immediate or Cancel)**: Execute immediately or cancel remainder
+6. **FOK (Fill or Kill)**: Execute completely or cancel entire order
+7. **Post-Only**: Only add liquidity (reject if would match immediately)
+8. **Reduce-Only**: Only reduce existing position size
 
-### Order Matching
-- **Price-Time Priority**: Best price first, then time priority
-- **Partial Fills**: Large orders can be filled incrementally
-- **Self-Trade Prevention**: Prevent user trading with themselves
-- **Minimum Size**: Prevent dust orders
+### Order Matching Engine
+- **Price Priority**: Better prices matched first
+- **Time Priority**: Earlier orders at same price matched first
+- **Pro-Rata**: Large orders split across multiple counterparties
+- **Self-Trade Prevention**: Users cannot trade against themselves
+- **Minimum Size**: Prevent dust orders and spam
 
-### Execution Flow
-```
-1. User submits order to OrderBook API
-2. Off-chain matching engine processes order
-3. Matched trades batched for settlement
-4. On-chain settlement updates positions
-5. Margin and funding calculations updated
+### Execution Examples
+```javascript
+// Stop-loss order
+await orderBook.submitOrder({
+  market: keccak256("BTC"),
+  side: "SELL",
+  size: parseEther("10000"),
+  orderType: "STOP",
+  stopPrice: parseEther("48000"), // Trigger at $48,000
+  reduceOnly: true
+})
+
+// Take-profit order
+await orderBook.submitOrder({
+  market: keccak256("BTC"),
+  side: "SELL",
+  size: parseEther("10000"),
+  orderType: "TAKE_PROFIT",
+  stopPrice: parseEther("55000"), // Trigger at $55,000
+  reduceOnly: true
+})
 ```
 
 ## Liquidation System
@@ -285,24 +364,35 @@ Trader Loss → Insurance Fund → Junior DUSD Stakers → Senior DUSD Stakers
 
 ## Integration Examples
 
-### Order Submission
+### Perpetual Trading
+
 ```javascript
-import { OrderBook } from '@di-network/sdk'
-
-const orderBook = new OrderBook({
-  provider: web3Provider,
-  network: 'mainnet'
-})
-
-// Submit limit order
-const order = await orderBook.submitOrder({
+// Submit limit order to CEX-style order book
+await di.orderBook.submitOrder({
   market: 'BTC',
   side: 'BUY',
   size: '10000', // $10,000 position
   price: '50000', // $50,000 limit
   orderType: 'LIMIT',
-  timeInForce: 'GTC',
-  reduceOnly: false
+  timeInForce: 'GTC'
+})
+
+// Market order for immediate execution
+await di.orderBook.submitOrder({
+  market: 'BTC',
+  side: 'SELL',
+  size: '5000',
+  orderType: 'MARKET'
+})
+
+// Advanced order types
+await di.orderBook.submitOrder({
+  market: 'BTC',
+  side: 'SELL',
+  size: '10000',
+  orderType: 'STOP',
+  stopPrice: '48000',
+  reduceOnly: true // Stop-loss
 })
 ```
 
@@ -324,6 +414,37 @@ const usePosition = (account, market) => {
       }
     },
     refetchInterval: 5000
+  })
+}
+```
+
+### Order Book Monitoring
+```javascript
+// Real-time order book data
+const useOrderBook = (market) => {
+  return useQuery({
+    queryKey: ['orderbook', market],
+    queryFn: async () => {
+      const orderbook = await orderBookAPI.getOrderBook(market)
+      return {
+        bids: orderbook.bids, // Buy orders
+        asks: orderbook.asks, // Sell orders
+        spread: orderbook.asks[0].price - orderbook.bids[0].price,
+        midPrice: (orderbook.asks[0].price + orderbook.bids[0].price) / 2
+      }
+    },
+    refetchInterval: 100 // Update every 100ms
+  })
+}
+
+// Trade history and fills
+const useTradeHistory = (account) => {
+  return useQuery({
+    queryKey: ['trades', account],
+    queryFn: async () => {
+      return await orderBookAPI.getTradeHistory(account)
+    },
+    refetchInterval: 1000
   })
 }
 ```
@@ -376,6 +497,14 @@ interface IMarginAccount {
     function getAvailableMargin(address user) external view returns (uint256);
     function getMarginRatio(address user) external view returns (uint256);
 }
+
+// Order book
+interface IOrderBook {
+    function submitOrder(OrderParams calldata params) external payable;
+    function cancelOrder(uint256 orderId) external;
+    function getOrderBook(bytes32 market) external view returns (OrderBookData memory);
+    function getUserOrders(address user) external view returns (Order[] memory);
+}
 ```
 
 ## Security Features
@@ -401,20 +530,21 @@ interface IMarginAccount {
 ## Benefits
 
 ### For Traders
+- **CEX-Like Experience**: Familiar order book trading interface
+- **Direct Counterparty**: Trade directly against other traders
+- **Professional Tools**: Advanced order types and execution options
+- **Fair Pricing**: Market-driven price discovery through order book
 - **High Leverage**: Up to 100x on forex, 50x on crypto
-- **Capital Efficiency**: Cross-margin system maximizes capital use
-- **Fair Pricing**: Oracle-anchored mark prices prevent manipulation
-- **24/7 Trading**: Access to global markets around the clock
-- **Advanced Orders**: Professional trading tools and order types
+- **Cross-Margin**: Efficient capital utilization across positions
 
 ### For Market Makers
-- **Maker Rebates**: Earn fees for providing liquidity
-- **Professional Tools**: Advanced order types and APIs
+- **Maker Rebates**: Earn fees for providing liquidity to order book
+- **Professional APIs**: High-frequency trading support
 - **Risk Management**: Sophisticated position and risk controls
-- **Institutional Features**: High-volume trading support
+- **Institutional Features**: Large order handling and execution
 
 ### For the Protocol
-- **Sustainable Model**: Trader-to-trader matching, no directional risk
-- **Scalable Architecture**: Order book model supports high throughput
-- **Revenue Generation**: Trading fees and liquidation penalties
-- **Community Alignment**: DUSD staking aligns incentives
+- **Zero Directional Risk**: Never acts as counterparty to trades
+- **Sustainable Model**: Earn fees from trade facilitation only
+- **Scalable Architecture**: Order book model supports unlimited throughput
+- **Market Neutral**: Protocol success independent of trader PnL

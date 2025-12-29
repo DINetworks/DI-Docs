@@ -48,13 +48,13 @@ Advanced oracle-based spot trading with dynamic risk management:
 
 ### ⚡ DPerp - Perpetual Trading
 
-Order-book based perpetual trading with oracle-anchored pricing:
+CEX-style order book perpetual trading with trader-to-trader matching:
 
-- **Order Book Model**: Central limit order book (CLOB)
+- **Order Book Model**: Central limit order book like Binance/Bybit
+- **Trader-to-Trader**: Direct counterparty matching (no LP pools)
+- **Oracle Pricing**: Mark price = oracle price for fair liquidations
 - **Cross-Margin**: Shared margin across all positions
-- **Oracle Pricing**: Mark price = oracle price (never order book)
-- **Funding Mechanism**: Price-deviation based funding
-- **Market Hours**: Equity-aware funding and risk controls
+- **Professional Orders**: Limit, Market, Stop, Take-Profit, IOC, FOK
 
 {% content-ref url="dperp/" %}
 [dperp](dperp/)
