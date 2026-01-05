@@ -1,29 +1,27 @@
 # DI Network Documentation
 
-Welcome to the comprehensive documentation for DI Network, a next-generation synthetic asset protocol that enables trading of real-world assets on the blockchain.
+Welcome to the comprehensive documentation for DI Network, a next-generation cross-chain protocol that enables seamless multi-chain interoperability and synthetic asset trading.
 
 ## What is DI Network?
 
 DI Network is a decentralized protocol that provides:
 
+- **Cross-Chain Infrastructure**: Bridge, gasless transactions, cross-chain swaps, and earning opportunities
 - **Synthetic Asset Trading**: Trade stocks, commodities, forex, and crypto without custody
 - **Perpetual Futures**: CEX-style order book trading with up to 100x leverage
 - **DUSD Stablecoin**: Algorithmic stablecoin backed by over-collateralization
-- **Cross-Chain Infrastructure**: Seamless asset bridging across multiple blockchains
 
 ## Key Features
 
-### 🔄 Synthetic Assets (DAssets)
-Trade synthetic versions of real-world assets with oracle-based pricing and zero slippage.
+### 🌉 Cross-Chain Infrastructure
+Comprehensive multi-chain ecosystem including bridge, gasless transactions, cross-chain swaps, and earning opportunities.
 
-### ⚡ Perpetual Trading (DPerp)
-Professional perpetual futures trading with CEX-style order books and trader-to-trader matching.
+### 🔄 Synthetic Assets(DAssets) and ⚡ Perpetual Trading (DPerp)
+Trade synthetic versions of real-world assets with oracle-based pricing and zero slippage. Professional perpetual futures trading with CEX-style order books and trader-to-trader matching.
 
 ### 💰 DUSD Stablecoin
 Algorithmic stablecoin with dynamic backing and advanced risk management.
 
-### 🌉 Cross-Chain Bridge
-Seamless asset transfers and meta-transactions across supported blockchains.
 
 ## Getting Started
 
@@ -62,8 +60,8 @@ Seamless asset transfers and meta-transactions across supported blockchains.
 <td><a href="core-infrastructure/dusd/">dusd</a></td>
 </tr>
 <tr>
-<td><strong>Cross-Chain Bridge</strong></td>
-<td>Seamless asset transfers and gasless transactions</td>
+<td><strong>Cross-Chain Infrastructure</strong></td>
+<td>Bridge, gasless transactions, cross-chain swaps, and earning opportunities</td>
 <td><a href="cross-chain/">cross-chain</a></td>
 </tr>
 </tbody>
@@ -75,19 +73,20 @@ Seamless asset transfers and meta-transactions across supported blockchains.
 flowchart TB
     A[DI Network Protocol] --> B[Core Infrastructure]
     A --> C[Synthetic Assets]
-    A --> D[Cross-Chain Bridge]
+    A --> D[Cross-Chain Infrastructure]
     
     B --> B1[DI Token]
     B --> B2[DUSD Stablecoin]
     B --> B3[Oracle System]
     
-    C --> C1[DSwap - Spot Trading]
-    C --> C2[DPerp - Perpetual Trading]
+    C --> C1[DSwap - DAssets Spot Trading]
+    C --> C2[DPerp - DAssets Perpetual Trading]
     C --> C3[DUSD Staking]
     
-    D --> D1[DI Gateway]
-    D --> D2[Token Bridge]
-    D --> D3[Meta Transactions]
+    D --> D1[Bridge]
+    D --> D2[Gasless Transactions]
+    D --> D3[Cross-Chain Swap]
+    D --> D4[Smart Earn]
 ```
 
 ## Quick Navigation

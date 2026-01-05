@@ -46,7 +46,7 @@ This section contains essential resources for using and developing with DI Netwo
 ### Official Links
 - **Website**: [https://dinetwork.xyz](https://dinetwork.xyz)
 - **Application**: [https://app.dinetwork.xyz](https://app.dinetwork.xyz)
-- **Documentation**: [https://docs.dinetwork.xyz](https://docs.dinetwork.xyz)
+- **Documentation**: [https://doc.dinetwork.xyz](https://doc.dinetwork.xyz)
 - **GitHub**: [https://github.com/dinetwork](https://github.com/dinetwork)
 
 ### Community
