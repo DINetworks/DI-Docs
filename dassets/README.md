@@ -34,13 +34,13 @@ flowchart TB
 
 ### 📊 DSwap - Spot Trading
 
-Advanced oracle-based spot trading with dynamic risk management:
+Advanced oracle-based spot trading with mathematical solvency guarantees:
 
-- **Virtual Assets**: No ERC20 tokens, position tracking only
-- **Dynamic Fees**: Stress-based burn fees (0.3-2%)
-- **Settlement Locks**: 1-minute MEV protection
-- **Hard Invariants**: Mathematical solvency guarantees
-- **Clone Factory**: Gas-efficient synthetic deployment
+- **Hard Invariants**: Mathematical impossibility of protocol insolvency
+- **Dynamic Fees**: Stress-based fees (0.3-5%) with insurance fund support
+- **Virtual Assets**: No ERC20 tokens, gas-efficient position tracking
+- **Settlement Locks**: 1-minute MEV protection with user-specific cooldowns
+- **Insurance Fund**: Emergency DUSD reserves for danger zone support
 
 {% content-ref url="dswap/" %}
 [dswap](dswap/)

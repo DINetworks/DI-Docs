@@ -1,15 +1,16 @@
 # DSwap - Spot Trading
 
-DSwap enables spot trading of synthetic assets using DUSD as the base currency. The system uses oracle-based pricing with advanced risk management, dynamic fee structures, and virtual asset tracking for maximum protocol security and capital efficiency.
+DSwap enables spot trading of synthetic assets using DUSD as the base currency. The system uses oracle-based pricing with enhanced multi-layer security architecture, dynamic fee structures, and mathematical solvency guarantees for maximum protocol security.
 
 ## Overview
 
 DSwap provides:
 - Virtual synthetic asset positions (no ERC20 tokens)
+- Mathematical solvency guarantees through hard invariants
 - Dynamic risk management with stress-based fees
+- Insurance fund integration for emergency support
 - Settlement locks for MEV protection
 - Gas-efficient clone factory for new assets
-- Mathematical solvency guarantees
 
 ## Architecture
 
@@ -18,7 +19,7 @@ User Interface (SwapRouter)
          ↓
     Core Logic (DSwap)
          ↓
-   Risk Management (Dynamic Backing + Fees)
+   Enhanced Risk Management (Hard Invariants + Dynamic Fees + Insurance)
          ↓
    Virtual Asset Tracking (SynthManager)
          ↓
@@ -28,9 +29,10 @@ User Interface (SwapRouter)
 ### Core Components
 
 - **SwapRouter**: User-facing interface with slippage protection
-- **DSwap**: Core swap logic with dynamic fee management
+- **DSwap**: Enhanced core logic with multi-layer security
 - **SynthManager**: Clone factory and virtual asset registry
 - **DUSDProvider**: Dynamic backing calculation and limits
+- **Insurance Fund**: Emergency DUSD reserves for danger zone support
 - **Virtual Assets**: Position tracking without token deployment
 
 ## Supported Operations
@@ -56,7 +58,7 @@ await swapRouter.burnSynthetic(
   parseEther("6.6"),  // 6.6 xAAPL virtual position
   parseEther("980")   // Min 980 DUSD (after dynamic fee)
 )
-// Note: Dynamic fee ranges from 0.3% to 2% based on stress ratio
+// Note: Dynamic fee ranges from 0.3% to 5% based on stress ratio
 ```
 
 ### 3. Swap Synthetic
@@ -69,8 +71,194 @@ await swapRouter.swapSynthetic(
   parseEther("6.6"),  // 6.6 xAAPL
   parseEther("4.9")   // Min 4.9 xTSLA
 )
-// Note: 0.3% flat fee, no DUSD intermediate step
+// Note: 0.3% base fee, no DUSD intermediate step
 ```
+
+## Enhanced Security Architecture
+
+### Hard Invariants (Mathematical Guarantees)
+
+The enhanced DSwap system implements three non-negotiable invariants that provide mathematical guarantees of protocol solvency:
+
+#### Invariant #1 — Global Solvency (Absolute)
+```solidity
+require(
+    syntheticDebtDUSD + totalDUSDSupply <= maxBorrowableDUSD + emergencyInsurance,
+    "GLOBAL_SOLVENCY_BREACH"
+);
+```
+- **Enforced**: At every state transition
+- **Components**: `syntheticDebtDUSD = Σ (assetSupply × oraclePrice)`
+- **Emergency Insurance**: Insurance fund DUSD reserves (only in danger zone)
+- **Guarantee**: Mathematical impossibility of protocol insolvency
+
+#### Invariant #2 — Rate Limiting (Time-Based Protection)
+```solidity
+require(
+    block.timestamp >= lastMintTime[asset] + mintCooldown[asset] || 
+    mintAmountInPeriod[asset] + amount <= mintRateCap[asset],
+    "MINT_RATE_EXCEEDED"
+);
+```
+- **Purpose**: Prevents flash minting during oracle spikes
+- **Scope**: Global per asset and per user cooldowns
+- **Protection**: Limits rapid exploitation of price movements
+
+#### Invariant #3 — Asset Debt Caps (Diversification)
+```solidity
+require(
+    syntheticLiability[asset] + amount <= assetDebtCap[asset],
+    "ASSET_DEBT_CAP_EXCEEDED"
+);
+```
+- **Purpose**: Prevents single asset from destabilizing system
+- **Configuration**: Independent caps per synthetic asset
+- **Risk Management**: Ensures portfolio diversification
+
+### Enhanced Stress Metrics
+
+The system uses a comprehensive stress calculation that accounts for all outstanding liabilities:
+
+```solidity
+stress = (syntheticDebtDUSD + totalDUSDSupply + additionalDUSD) * 1e18 / maxBorrowableDUSD
+```
+
+**Where**:
+- `syntheticDebtDUSD = Σ (assetSupply × oraclePrice)` - Total synthetic asset debt
+- `totalDUSDSupply` - All minted DUSD tokens
+- `maxBorrowableDUSD = (totalCollateralValue × maintenanceRatio) / 10000`
+
+**Stress Zones**:
+- **Healthy** (< 95%): Base fees, normal operations
+- **Normal** (95-100%): Linear fee escalation
+- **Danger** (100-105%): Exponential fees + insurance fund support
+- **Blocked** (> 105%): Operations halted by hard cap
+
+### Advanced Fee System
+
+The enhanced fee system provides both revenue generation and risk mitigation:
+
+#### Dynamic Fee Structure
+```solidity
+function getBurnFeeBps(uint256 additionalDUSD) public view returns (uint256) {
+    uint256 stress = getStressRatio(additionalDUSD);
+    
+    if (stress < 95e16) {        // < 95%
+        return baseFeeBps;       // 0.3% base rate
+    } else if (stress < 1e18) {  // 95% - 100%
+        // Linear escalation: 0.3% to 0.5%
+        uint256 normalZone = (stress - 95e16) * 1e18 / 5e16;
+        return baseFeeBps + (normalZone * 20) / 1e18;
+    } else if (stress < 105e16) { // 100% - 105%
+        // Exponential escalation: 0.5% to 5%
+        uint256 dangerZone = (stress - 1e18) * 1e18 / 5e16;
+        return 50 + (dangerZone * dangerZone * 450) / 1e36;
+    } else {
+        revert("STRESS_TOO_HIGH");
+    }
+}
+```
+
+#### Fee Distribution System
+```solidity
+function setFeeDistribution(
+    uint256 _baseFeeBps,
+    uint256 _insuranceFeeRatio,
+    address _feeRecipient
+) external onlyRole(ADMIN_ROLE) {
+    baseFeeBps = _baseFeeBps;           // Base fee rate (default 0.3%)
+    insuranceFeeRatio = _insuranceFeeRatio; // Insurance fund share (default 50%)
+    feeRecipient = _feeRecipient;       // Remaining fees recipient
+}
+```
+
+**Fee Allocation**:
+- **Insurance Fund**: 50% (configurable) - Builds protocol reserves
+- **Fee Recipient**: 50% (configurable) - Protocol revenue/stakers
+- **Dynamic Rates**: Stress-based escalation for burn operations
+
+### Insurance Fund Integration
+
+The insurance fund provides additional backing during stress periods:
+
+#### Emergency Insurance Activation
+```solidity
+function _getEmergencyInsurance(uint256 additionalDUSD) internal view returns (uint256) {
+    uint256 stress = _getStressRatio(additionalDUSD);
+    return stress >= 1e18 ? dusd.balanceOf(address(this)) : 0;
+}
+```
+
+#### Stress-Based DUSD Minting
+```solidity
+function _mintDUSDFromBurnedSynth(address user, uint256 dusdAmount, uint256 netDUSD) internal {
+    _checkGlobalSolvency(dusdAmount);
+    
+    uint256 stress = _getStressRatio(dusdAmount);
+    IDUSD dusd = _dusd();
+    
+    if (stress >= 1e18) {
+        // Danger zone: Use insurance fund reserves
+        require(dusd.balanceOf(address(this)) >= netDUSD, "Insufficient insurance fund");
+        dusd.transfer(user, netDUSD);
+    } else {
+        // Normal operation: Mint new DUSD
+        dusd.mint(user, netDUSD);
+    }
+}
+```
+
+**Insurance Fund Features**:
+- **Automatic Activation**: Engages when stress ≥ 100%
+- **Reserve Utilization**: Uses accumulated DUSD reserves
+- **Solvency Protection**: Prevents new DUSD minting in danger zone
+- **Fee Funding**: Built from 50% of all trading fees
+
+### Settlement Lock Protection
+```solidity
+mapping(address => uint256) public lastSwapTime;
+uint256 public constant SETTLEMENT_LOCK = 1 minutes;
+
+modifier settlementLock(address user) {
+    require(
+        block.timestamp >= lastSwapTime[user] + SETTLEMENT_LOCK,
+        "Settlement locked"
+    );
+    _;
+}
+```
+
+**Anti-MEV Features**:
+- **1-Minute Cooldown**: Prevents rapid arbitrage cycles
+- **User-Specific**: Each user has independent cooldown
+- **Comprehensive Coverage**: Applies to all swap operations
+- **Price Stabilization**: Reduces oracle front-running opportunities
+
+## Multi-Layer Defense System
+
+### Layer 1: Hard Mathematical Invariants
+- **Global Solvency**: `totalDebt ≤ maxBorrowable + insurance`
+- **Rate Limiting**: Prevents flash exploitation
+- **Asset Caps**: Diversification enforcement
+- **Guarantee**: Mathematical impossibility of insolvency
+
+### Layer 2: Dynamic Economic Controls
+- **Stress-Based Fees**: 0.3% to 5% based on system stress
+- **Insurance Fund**: Automatic activation in danger zone
+- **Fee Distribution**: 50% to insurance, 50% to protocol
+- **Exponential Escalation**: Rapid fee increase in danger zone
+
+### Layer 3: Operational Protections
+- **Settlement Locks**: 1-minute MEV protection
+- **Oracle Validation**: Staleness and deviation checks
+- **Access Control**: Role-based admin functions
+- **Emergency Pause**: Immediate halt capability
+
+### Layer 4: Real-Time Monitoring
+- **Continuous Stress Calculation**: Real-time solvency tracking
+- **Asset-Level Monitoring**: Per-asset debt tracking
+- **Rate Limit Tracking**: Global and per-user limits
+- **Insurance Fund Status**: Reserve level monitoring
 
 ## Key Features
 
@@ -80,12 +268,6 @@ await swapRouter.swapSynthetic(
 - **Instant Addition**: Add new assets without token deployment
 - **Upgradeable Logic**: Update implementation without migration
 
-### Advanced Risk Management
-- **Hard Invariants**: Mathematical impossibility of protocol insolvency
-- **Dynamic Backing**: Real-time collateral monitoring
-- **Stress-Based Fees**: Dynamic burn fees (0.3-2%)
-- **Settlement Locks**: 1-minute MEV protection
-
 ### Oracle-Based Pricing
 - Real-time price feeds from Chainlink and Pyth
 - Zero slippage on oracle price
@@ -93,89 +275,57 @@ await swapRouter.swapSynthetic(
 - Staleness and deviation protection
 
 ### Dynamic Fee Structure
-- **Mint fee**: 0.3% flat (safe operation - no DUSD minting)
-- **Burn fee**: 0.3-2% dynamic based on stress ratio (risky - mints DUSD)
-- **Swap fee**: 0.3% flat (synthetic-to-synthetic, no DUSD involved)
+- **Mint fee**: 0.3% base (safe operation - no DUSD minting)
+- **Burn fee**: 0.3-5% dynamic based on stress ratio (risky - mints DUSD)
+- **Swap fee**: 0.3% base (synthetic-to-synthetic, no DUSD involved)
 - **Settlement lock**: 1-minute cooldown after all operations
-
-### Clone Factory Benefits
-
-#### Gas Efficiency
-- **First deployment**: ~2M gas (implementation)
-- **Subsequent deployments**: ~50K gas (clones)
-- **Savings**: 97.5% gas reduction per new synthetic
-
-#### Upgradeability
-- Update implementation address in SynthManager
-- New synthetics use new implementation
-- Existing synthetics unchanged
-- No migration needed
-
-#### Consistency
-- All synthetics share same logic
-- Uniform behavior across assets
-- Easier auditing and testing
 
 ## Trading Flow Example
 
-### Mint xAAPL with 1000 DUSD (Virtual Position)
+### Enhanced Mint Flow with Security Checks
 1. User approves 1000 DUSD to SwapRouter
-2. Check: totalSupply + 1000 ≤ maxBorrowableDUSD ✓
-3. Oracle provides AAPL price ($150)
-4. Fee calculation: 1000 × 0.003 = 3 DUSD (flat mint fee)
-5. Net amount: 997 DUSD
-6. xAAPL amount: 997 ÷ 150 = 6.64 xAAPL
-7. Burn 997 DUSD from user
-8. SynthManager tracks 6.64 xAAPL virtual position
-9. Settlement lock: 1 minute (no transfers/swaps)
+2. **Hard Invariant Check**: Verify global solvency constraints
+3. **Rate Limiting**: Check per-asset and per-user mint limits
+4. **Asset Cap Check**: Verify asset debt cap not exceeded
+5. Oracle provides AAPL price ($150)
+6. Fee calculation: 1000 × 0.003 = 3 DUSD (base mint fee)
+7. Fee distribution: 1.5 DUSD to insurance fund, 1.5 DUSD to fee recipient
+8. Net amount: 997 DUSD
+9. xAAPL amount: 997 ÷ 150 = 6.64 xAAPL
+10. Burn 1000 DUSD from user
+11. SynthManager tracks 6.64 xAAPL virtual position
+12. Settlement lock: 1 minute (no transfers/swaps)
 
-### Burn xAAPL back to DUSD (Dynamic Fee)
+### Enhanced Burn Flow with Insurance Support
 1. User has 6.64 xAAPL virtual position (after settlement lock expires)
-2. Oracle provides AAPL price ($160)
-3. Value: 6.64 × 160 = 1,062 DUSD
-4. Check: totalSupply + 1,062 ≤ maxBorrowableDUSD ✓
-5. Calculate stress ratio: 0.7 (example)
-6. Dynamic burn fee: 1.5% = 16 DUSD
-7. Net amount: 1,046 DUSD
-8. Mint 1,046 DUSD to user
-9. Settlement lock: 1 minute (new lock period)
+2. **Cooldown Check**: Verify mint cooldown period has passed
+3. Oracle provides AAPL price ($160)
+4. Value: 6.64 × 160 = 1,062 DUSD
+5. **Stress Calculation**: Current stress ratio = 0.98 (98% of max borrowable)
+6. **Dynamic Fee**: 0.4% = 4.25 DUSD (normal zone linear escalation)
+7. **Global Solvency Check**: Verify hard invariants
+8. **Insurance Fund Check**: Stress < 100%, normal minting
+9. Net amount: 1,058 DUSD
+10. Mint 1,058 DUSD to user
+11. Fee distribution: 2.125 DUSD to insurance fund, 2.125 DUSD to fee recipient
+12. Settlement lock: 1 minute (new lock period)
 
-## Risk Management Architecture
+## Risk Classification Matrix
 
-### Hard Invariant Protection
-```solidity
-// Prevents protocol insolvency
-require(
-    totalDUSDSupply + dUSDAmount <= getMaxBorrowableDUSD(),
-    "INSUFFICIENT_BACKING"
-);
-```
+| Operation | Risk Level | Fee Structure | Insurance Support |
+|-----------|------------|---------------|-------------------|
+| **Mint Synthetic** | Low | Base fee (0.3%) | No |
+| **Swap Synthetic** | Low | Base fee (0.3%) | No |
+| **Burn Synthetic** | High | Dynamic (0.3-5%) | Yes (danger zone) |
 
-### Dynamic Fee Calculation
-```solidity
-// Stress-based burn fees
-function getBurnFeeBps() public view returns (uint256) {
-    uint256 stress = (totalDUSDSupply * 1e18) / totalSyntheticValue;
-    uint256 fee = MIN_FEE_BPS + 
-        (stress * (MAX_FEE_BPS - MIN_FEE_BPS)) / 1e18;
-    return Math.min(fee, MAX_FEE_BPS);
-}
-```
+## Stress Response System
 
-### Settlement Lock Protection
-```solidity
-// Anti-MEV protection
-mapping(address => uint256) public lastSwapTime;
-uint256 public constant SETTLEMENT_LOCK = 1 minutes;
-
-modifier settlementLock() {
-    require(
-        block.timestamp >= lastSwapTime[msg.sender] + SETTLEMENT_LOCK,
-        "Settlement locked"
-    );
-    _;
-}
-```
+| Stress Level | Range | Fee Rate | Insurance | Operations |
+|--------------|-------|----------|-----------|------------|
+| **Healthy** | 0-95% | 0.3% | Inactive | Full |
+| **Normal** | 95-100% | 0.3-0.5% | Inactive | Full |
+| **Danger** | 100-105% | 0.5-5% | Active | Restricted |
+| **Blocked** | >105% | N/A | N/A | Halted |
 
 ## Virtual Asset Architecture
 
@@ -210,13 +360,6 @@ struct SynthInfo {
     bool active;          // Trading enabled
 }
 ```
-
-**Key Functions:**
-- `updateImplementation()`: Upgrade token implementation
-- `deploySynthetic()`: Clone and initialize new synthetic
-- `setSyntheticStatus()`: Enable/disable trading
-- `mint()`: Mint synthetic tokens (virtual positions)
-- `burn()`: Burn synthetic tokens (virtual positions)
 
 ## Supported Assets (Virtual Positions)
 
@@ -254,161 +397,55 @@ const dswap = new DSwap({
   network: 'mainnet'
 })
 
-// Check dynamic fees and protocol limits
-const burnFee = await dswap.getBurnFeeBps()
+// Check enhanced risk metrics
 const stressRatio = await dswap.getStressRatio()
+const burnFee = await dswap.getBurnFeeBps()
+const insuranceFund = await dswap.getInsuranceFundBalance()
 const canMint = await dswap.canMint('1000')
 
 // Get virtual asset info
 const synthInfo = await dswap.synthManager.getSynthetic(keccak256('xAAPL'))
 console.log('Virtual asset address:', synthInfo.token)
 console.log('Total virtual supply:', synthInfo.totalSupply)
+console.log('Asset debt cap:', synthInfo.debtCap)
 
-// Execute swap with settlement awareness
+// Execute swap with enhanced security
 const tx = await dswap.mintSynthetic('xAAPL', '1000')
 // Note: 1-minute settlement lock applies after trade
 ```
 
 ### Smart Contract Integration
 ```solidity
-interface ISwapRouter {
-    function mintSynthetic(
-        bytes32 assetId,
-        uint256 dUSDAmount,
-        uint256 minAmountOut
-    ) external;
-    
-    function burnSynthetic(
-        bytes32 assetId,
-        uint256 synthAmount,
-        uint256 minAmountOut
-    ) external;
-    
-    function swapSynthetic(
-        bytes32 fromAssetId,
-        bytes32 toAssetId,
-        uint256 amountIn,
-        uint256 minAmountOut
-    ) external;
-}
-
 interface IDSwap {
-    // Risk management functions
-    function getBurnFeeBps() external view returns (uint256);
+    // Enhanced risk management functions
     function getStressRatio() external view returns (uint256);
-    function getMaxBorrowableDUSD() external view returns (uint256);
-    function getTotalSyntheticValue() external view returns (uint256);
-    function canMint(uint256 dUSDAmount) external view returns (bool);
+    function getBurnFeeBps() external view returns (uint256);
+    function getInsuranceFundBalance() external view returns (uint256);
+    function canMint(bytes32 assetId, uint256 amount) external view returns (bool);
+    function getAssetDebtCap(bytes32 assetId) external view returns (uint256);
     function lastSwapTime(address user) external view returns (uint256);
-}
-
-interface ISynthManager {
-    function getSynthetic(bytes32 assetId) external view returns (SynthInfo memory);
-    function getAllSynthetics() external view returns (bytes32[] memory);
-    function deploySynthetic(bytes32 assetId, string memory name, string memory symbol, bytes32 priceId) external;
-    function updateImplementation(address newImpl) external;
-}
-
-// Settlement lock modifier example
-modifier checkSettlementLock() {
-    require(
-        block.timestamp >= lastSwapTime[msg.sender] + SETTLEMENT_LOCK,
-        "Settlement period active"
-    );
-    _;
+    
+    // Admin functions for enhanced security
+    function setFeeDistribution(uint256 baseFeeBps, uint256 insuranceRatio, address recipient) external;
+    function addAsset(bytes32 assetId, uint256 debtCap, uint256 rateCap, uint256 cooldown) external;
+    function setAssetActive(bytes32 assetId, bool active) external;
 }
 ```
-
-## Deployment Sequence
-
-1. Deploy `SyntheticToken` implementation
-2. Deploy `SynthManager` with implementation address
-3. Deploy `DSwap` with oracle, DUSD, and SynthManager
-4. Deploy `SwapRouter` with DSwap, SynthManager, and DUSD
-5. Grant DSwap permission to call SynthManager
-6. Deploy synthetics via `SynthManager.deploySynthetic()`
-7. Configure fees in DSwap
-8. Set fee collector address
-
-### Example Deployment Script
-
-```solidity
-// 1. Deploy implementation
-SyntheticToken implementation = new SyntheticToken();
-
-// 2. Deploy SynthManager
-SynthManager synthManager = new SynthManager(address(implementation));
-
-// 3. Deploy DSwap
-DSwap dSwap = new DSwap(oracle, dUSD, address(synthManager));
-
-// 4. Deploy SwapRouter
-SwapRouter router = new SwapRouter(address(dSwap), address(synthManager), dUSD);
-
-// 5. Grant roles
-synthManager.grantRole(ADMIN_ROLE, address(dSwap));
-
-// 6. Deploy synthetics (virtual assets)
-synthManager.deploySynthetic(
-    keccak256("xBTC"),
-    "Synthetic Bitcoin",
-    "xBTC",
-    pythBTCPriceId
-);
-
-// 7. Configure fees
-dSwap.setFees(30); // 0.3%
-dSwap.setFeeCollector(treasury);
-```
-
-## Advanced Security Features
-
-### Protocol Solvency Protection
-- **Dynamic Backing Limits**: Real-time calculation prevents over-issuance
-- **Stress Monitoring**: Continuous ratio tracking and fee adjustment
-- **Hard Caps**: Mathematical impossibility of insolvency
-- **Emergency Controls**: Governance pause and parameter adjustment
-
-### MEV and Arbitrage Protection
-- **Settlement Locks**: 1-minute cooldown prevents rapid arbitrage
-- **Oracle Anchoring**: No AMM manipulation possible
-- **Fee Curves**: Economic disincentives for destabilizing behavior
-
-### Operational Security
-- Multi-signature governance for parameter changes
-- Oracle staleness and validity checks
-- Role-based access control
-- Comprehensive event logging
 
 ## Benefits
 
 ### For Traders
 - Access to global markets 24/7
 - Zero slippage oracle-based pricing
-- Instant settlement with MEV protection
-- No counterparty risk
-- Dynamic fees reflect market conditions
+- Mathematical solvency guarantees
+- Enhanced MEV protection
+- Dynamic fees reflect system health
 
 ### For the Protocol
-- Guaranteed solvency through hard limits
-- Self-balancing through dynamic fees
+- Mathematical impossibility of insolvency
+- Self-balancing through dynamic fees and insurance
 - Scalable virtual asset system
-- Minimal operational overhead
-- Advanced risk management
+- Comprehensive risk management
+- Revenue generation through fee distribution
 
-## Security Features
-
-### Four-Layer Defense System
-1. **Hard Invariant**: Dynamic backing limits prevent insolvency
-2. **Dynamic Fees**: Economic pressure maintains balance
-3. **Settlement Locks**: MEV and arbitrage protection
-4. **Real-time Monitoring**: Continuous risk assessment
-
-### Risk Classification
-| Operation | Risk Level | Fee Type |
-|-----------|------------|----------|
-| **Mint Synthetic** | Low | 0.3% flat |
-| **Swap Synthetic** | Low | 0.3% flat |
-| **Burn Synthetic** | High | 0.3-2% dynamic |
-
-**Key Insight**: Only burning synthetics (synthetic → DUSD) creates solvency risk by minting new DUSD, hence the dynamic fee structure. Minting and swapping are safe operations with flat fees.
+**Key Insight**: The enhanced DSwap system provides mathematical guarantees of protocol solvency through hard invariants while maintaining economic incentives through dynamic fees and insurance fund support. Only burning synthetics creates solvency risk by minting new DUSD, hence the sophisticated multi-layer security architecture.

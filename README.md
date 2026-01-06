@@ -14,14 +14,16 @@ DI Network is a decentralized protocol that provides:
 ## Key Features
 
 ### 🌉 Cross-Chain Infrastructure
+
 Comprehensive multi-chain ecosystem including bridge, gasless transactions, cross-chain swaps, and earning opportunities.
 
 ### 🔄 Synthetic Assets(DAssets) and ⚡ Perpetual Trading (DPerp)
+
 Trade synthetic versions of real-world assets with oracle-based pricing and zero slippage. Professional perpetual futures trading with CEX-style order books and trader-to-trader matching.
 
 ### 💰 DUSD Stablecoin
-Algorithmic stablecoin with dynamic backing and advanced risk management.
 
+Algorithmic stablecoin with dynamic backing and advanced risk management.
 
 ## Getting Started
 
@@ -45,6 +47,11 @@ Algorithmic stablecoin with dynamic backing and advanced risk management.
 </thead>
 <tbody>
 <tr>
+<td><strong>Cross-Chain Infrastructure</strong></td>
+<td>Bridge, gasless transactions, cross-chain swaps, and earning opportunities</td>
+<td><a href="cross-chain/">cross-chain</a></td>
+</tr>
+<tr>
 <td><strong>DAssets - Synthetic Trading</strong></td>
 <td>Trade synthetic assets with virtual positions and dynamic risk management</td>
 <td><a href="dassets/">dassets</a></td>
@@ -59,11 +66,7 @@ Algorithmic stablecoin with dynamic backing and advanced risk management.
 <td>Algorithmic stablecoin with collateral backing and interest rates</td>
 <td><a href="core-infrastructure/dusd/">dusd</a></td>
 </tr>
-<tr>
-<td><strong>Cross-Chain Infrastructure</strong></td>
-<td>Bridge, gasless transactions, cross-chain swaps, and earning opportunities</td>
-<td><a href="cross-chain/">cross-chain</a></td>
-</tr>
+
 </tbody>
 </table>
 
@@ -74,15 +77,15 @@ flowchart TB
     A[DI Network Protocol] --> B[Core Infrastructure]
     A --> C[Synthetic Assets]
     A --> D[Cross-Chain Infrastructure]
-    
+
     B --> B1[DI Token]
     B --> B2[DUSD Stablecoin]
     B --> B3[Oracle System]
-    
+
     C --> C1[DSwap - DAssets Spot Trading]
     C --> C2[DPerp - DAssets Perpetual Trading]
     C --> C3[DUSD Staking]
-    
+
     D --> D1[Bridge]
     D --> D2[Gasless Transactions]
     D --> D3[Cross-Chain Swap]
@@ -92,18 +95,21 @@ flowchart TB
 ## Quick Navigation
 
 ### For Traders
+
 - [Getting Started Guide](user-guides/getting-started.md)
 - [Spot Trading Tutorial](user-guides/trading/spot.md)
 - [Perpetual Trading Guide](user-guides/trading/perpetuals.md)
 - [Risk Management](user-guides/trading/risk.md)
 
 ### For Developers
+
 - [Development Setup](developers/setup.md)
 - [SDK Reference](developers/sdk/)
 - [Smart Contracts](developers/contracts/)
 - [API Documentation](developers/api/)
 
 ### For Stakers
+
 - [DUSD Staking Guide](dassets/dusd-staking.md)
 - [Governance Participation](user-guides/governance/)
 - [Rewards System](user-guides/staking/rewards.md)
@@ -118,6 +124,7 @@ flowchart TB
 ## Security & Audits
 
 DI Network prioritizes security through:
+
 - Multiple security audits by leading firms
 - Formal verification of critical functions
 - Comprehensive testing and bug bounty programs
